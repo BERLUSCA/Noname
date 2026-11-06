@@ -1,0 +1,9 @@
+# Dipendenze confermate e installate in .venv
+datapizza-ai==0.1.0
+datapizza-ai-clients-anthropic==0.0.8
+datapizza-ai-clients-openai==0.0.13
+fastapi
+uvicorn
+sentence-transformers
+pytest
+pytest-watch

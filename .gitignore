@@ -218,3 +218,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Progetto
+logs/
+/AGENTS.md
+/PROGRESS.md
+/AITHO_Progetto_Personale.pdf
