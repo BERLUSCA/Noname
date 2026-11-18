@@ -12,8 +12,10 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from src.agent.llm import create_client  # noqa: E402
+from src.observability.logger import CallLogger  # noqa: E402
 from src.observability.pricing import PRICES, estimate_cost_usd  # noqa: E402
 from src.quiz.checks import is_grounded, matches_expected  # noqa: E402
+from src.rag.verifier import FactVerifier, build_claim  # noqa: E402
 from src.quiz.generator import QuizGenerator  # noqa: E402
 
 GOLD_PATH = ROOT / "evals" / "gold.jsonl"
@@ -24,12 +26,12 @@ def load_gold() -> list[dict]:
         return [json.loads(line) for line in f if line.strip()]
 
 
-def evaluate(generator: QuizGenerator, items: list[dict]) -> list[dict]:
+def evaluate(generator: QuizGenerator, verifier: FactVerifier, items: list[dict]) -> list[dict]:
     rows = []
     for item in items:
         started = time.perf_counter()
         expected = item["options"][item["correct_index"]]
-        row = {"id": item["id"], "schema_ok": False, "grounded": False, "matches_gold": False,
+        row = {"id": item["id"], "schema_ok": False, "grounded": False, "matches_gold": False, "verified": False,
                "latency_s": 0.0, "input_tokens": 0, "output_tokens": 0, "error": None}
         try:
             question = generator.generate(
@@ -39,6 +41,9 @@ def evaluate(generator: QuizGenerator, items: list[dict]) -> list[dict]:
             row["schema_ok"] = len(question.options) == 4
             row["grounded"] = is_grounded(correct_option, item["passage"])
             row["matches_gold"] = matches_expected(correct_option, expected)
+            # Judge model: does the passage support the marked-correct answer? (one call per item)
+            verdict = verifier.verify(build_claim(question.question, correct_option), item["passage"])
+            row["verified"] = verdict.supported
         except Exception as exc:  # record and continue: one failed item must not stop the run
             row["error"] = f"{type(exc).__name__}: {exc}"
         row["latency_s"] = round(time.perf_counter() - started, 2)
@@ -60,7 +65,8 @@ def summarize(rows: list[dict], model: str) -> dict:
         "items": total,
         "errors": sum(1 for r in rows if r["error"]),
         "schema_ok_rate": round(sum(r["schema_ok"] for r in rows) / total, 2),
-        "grounded_rate": round(sum(r["grounded"] for r in rows) / total, 2),
+        "verified_rate": round(sum(r["verified"] for r in rows) / total, 2),
+        "grounded_lexical_rate": round(sum(r["grounded"] for r in rows) / total, 2),
         "matches_gold_rate": round(sum(r["matches_gold"] for r in rows) / total, 2),
         "avg_latency_s": round(statistics.mean(r["latency_s"] for r in rows), 2),
         "input_tokens": input_tokens,
@@ -79,8 +85,8 @@ def main() -> None:
         os.environ["MODEL_AGENT"] = args.model
 
     client = create_client("MODEL_AGENT")
-    generator = QuizGenerator(client)
-    rows = evaluate(generator, load_gold())
+    generator = QuizGenerator(client, logger=CallLogger())
+    rows = evaluate(generator, FactVerifier(create_client("MODEL_JUDGE"), logger=CallLogger()), load_gold())
     for row in rows:
         print(json.dumps(row, ensure_ascii=False))
     print("SUMMARY", json.dumps(summarize(rows, client.model_name), ensure_ascii=False))

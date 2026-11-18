@@ -36,3 +36,13 @@ def test_is_grounded_true_for_short_option_present_in_passage():
 def test_is_grounded_false_for_short_option_absent_from_passage():
     passage = "Breaking Bad è stata trasmessa sulla rete AMC."
     assert not is_grounded("HBO", passage)
+
+
+def test_is_grounded_matches_numbers_with_different_separators():
+    passage = "Il budget finale ammontava a circa 750 000 dollari."
+    assert is_grounded("750.000 dollari", passage)
+    assert is_grounded("750000 dollari", passage)
+
+
+def test_is_grounded_does_not_merge_plain_years():
+    assert not is_grounded("2011", "Il film è uscito nel 2010.")

@@ -4,9 +4,15 @@ MIN_WORD_LEN = 4  # ignores short words (articles, prepositions)
 OVERLAP_THRESHOLD = 0.5
 
 
+def _tokens(text: str) -> set[str]:
+    """Lowercase word tokens. Thousands separators are removed: '750.000', '750 000' -> '750000'."""
+    joined = re.sub(r"(?<=\d)[.,\s](?=\d{3}(?!\d))", "", text.lower())
+    return set(re.findall(r"\w+", joined))
+
+
 def content_words(text: str) -> set[str]:
     """Long words, or all words if the text has none (e.g. short answers like 'AMC')."""
-    words = set(re.findall(r"\w+", text.lower()))
+    words = _tokens(text)
     long_words = {w for w in words if len(w) >= MIN_WORD_LEN}
     return long_words or words
 
@@ -14,8 +20,7 @@ def content_words(text: str) -> set[str]:
 def _overlap(words: set[str], text: str) -> float:
     if not words:
         return 0.0
-    text_tokens = set(re.findall(r"\w+", text.lower()))
-    return len(words & text_tokens) / len(words)
+    return len(words & _tokens(text)) / len(words)
 
 
 def is_grounded(option: str, passage: str) -> bool:

@@ -1,0 +1,74 @@
+[
+  {
+    "slug": "inception",
+    "title": "Inception",
+    "url": "https://it.wikipedia.org/wiki/Inception",
+    "retrieved_at": "2026-11-11T21:10:42.844700+00:00",
+    "chars": 41771,
+    "sha256": "42e49943c43a4bde6b6bc8278d541f32c48e76adcf377f98d781bfd16b20fd9c"
+  },
+  {
+    "slug": "il_padrino_film",
+    "title": "Il padrino (film)",
+    "url": "https://it.wikipedia.org/wiki/Il_padrino_%28film%29",
+    "retrieved_at": "2026-11-11T21:10:42.844700+00:00",
+    "chars": 38969,
+    "sha256": "cbe6214b7b7221e7a0b320c172aa70de1e79f0c6434e4f609192c55abf3c2aab"
+  },
+  {
+    "slug": "breaking_bad",
+    "title": "Breaking Bad",
+    "url": "https://it.wikipedia.org/wiki/Breaking_Bad",
+    "retrieved_at": "2026-11-11T21:10:42.844700+00:00",
+    "chars": 39028,
+    "sha256": "3efb2a6864dac02bb4ce265d81c8d03659a22c45c005f7578dc54a3af8106df6"
+  },
+  {
+    "slug": "friends",
+    "title": "Friends",
+    "url": "https://it.wikipedia.org/wiki/Friends",
+    "retrieved_at": "2026-11-11T21:10:42.844700+00:00",
+    "chars": 47794,
+    "sha256": "8938157106c0f8837cafd2d0d0f5bcb69d11ee685d609eb16e0a4d0ca69ead1f"
+  },
+  {
+    "slug": "pulp_fiction",
+    "title": "Pulp Fiction",
+    "url": "https://it.wikipedia.org/wiki/Pulp_Fiction",
+    "retrieved_at": "2026-11-11T21:10:42.844700+00:00",
+    "chars": 36982,
+    "sha256": "b2930350ef6c939c69c15360b2a08a572c3a8ff0c5844498bda540006db0a964"
+  },
+  {
+    "slug": "il_signore_degli_anelli_la_compagnia_dell_anello",
+    "title": "Il Signore degli Anelli - La Compagnia dell'Anello",
+    "url": "https://it.wikipedia.org/wiki/Il_Signore_degli_Anelli_-_La_Compagnia_dell%27Anello",
+    "retrieved_at": "2026-11-11T21:10:42.844700+00:00",
+    "chars": 29843,
+    "sha256": "f6902ae1d1a48ec826039890428f656a13eaf1d94256bc59a10dd4d31c38551f"
+  },
+  {
+    "slug": "psyco",
+    "title": "Psyco",
+    "url": "https://it.wikipedia.org/wiki/Psyco",
+    "retrieved_at": "2026-11-11T21:10:42.844700+00:00",
+    "chars": 26879,
+    "sha256": "44650a38276149e0d4ad83b388366b5f2a032d334a0293b7d08dbc9f341c70fa"
+  },
+  {
+    "slug": "il_miglio_verde_film",
+    "title": "Il miglio verde (film)",
+    "url": "https://it.wikipedia.org/wiki/Il_miglio_verde_%28film%29",
+    "retrieved_at": "2026-11-11T21:10:42.844700+00:00",
+    "chars": 17097,
+    "sha256": "71383e213aadc0d52d587d963db97987e712cf81af9d4952f86eb92b2e8c7196"
+  },
+  {
+    "slug": "obsession_film_2025",
+    "title": "Obsession (film 2025)",
+    "url": "https://it.wikipedia.org/wiki/Obsession_%28film_2025%29",
+    "retrieved_at": "2026-11-11T21:10:42.844700+00:00",
+    "chars": 8794,
+    "sha256": "d83f5648445eb8a8c74b148b85fe0c115cbb22b30e65641c68db27a119db5613"
+  }
+]

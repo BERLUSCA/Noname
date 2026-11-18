@@ -224,3 +224,7 @@ logs/
 /AGENTS.md
 /PROGRESS.md
 /AITHO_Progetto_Personale.pdf
+# SQLite database
+data/*.db
+results/
+data/index/

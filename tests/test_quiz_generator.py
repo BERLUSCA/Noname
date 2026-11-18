@@ -1,9 +1,12 @@
+import json
+
 import pytest
 from datapizza.clients.mock_client import MockClient
 from datapizza.core.clients import ClientResponse
 from datapizza.type import StructuredBlock
 from pydantic import ValidationError
 
+from src.observability.logger import CallLogger
 from src.quiz.generator import SYSTEM_PROMPT, QuizGenerator, QuizOutput, QuizQuestion
 
 
@@ -74,3 +77,13 @@ def test_quiz_generator_generate_sends_focus_fact():
     QuizGenerator(client).generate("Inception", "Testo", source="wiki:Inception", focus="Nolan ha diretto il film")
     sent_text = "\n".join(block.content for block in client.received[0]["input"])
     assert "Nolan ha diretto il film" in sent_text
+
+
+def test_quiz_generator_generate_writes_call_log(tmp_path):
+    path = tmp_path / "calls.jsonl"
+    client = FixedOutputClient(VALID_OUTPUT)
+    QuizGenerator(client, logger=CallLogger(path)).generate("Inception", "Testo", source="wiki:Inception")
+    record = json.loads(path.read_text(encoding="utf-8").splitlines()[0])
+    assert record["operation"] == "quiz_generation"
+    assert record["model"] == "fake-model"
+    assert "Inception" in record["request"]
