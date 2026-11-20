@@ -3,7 +3,7 @@
 import pytest
 
 from src.quiz.generator import Question
-from src.quiz.verified import NotEnoughVerifiedQuestions, VerificationUnavailable, generate_verified
+from src.quiz.verified import MAX_GENERATION_ATTEMPTS, NotEnoughVerifiedQuestions, VerificationUnavailable, generate_verified
 
 
 def q(label):
@@ -37,10 +37,10 @@ def test_keeps_only_supported_and_regenerates_missing():
 
 
 def test_raises_after_max_attempts():
-    gen = Gen([[q("BAD 1")], [q("BAD 2")]])
+    gen = Gen([[q(f"BAD {i}")] for i in range(MAX_GENERATION_ATTEMPTS)])
     with pytest.raises(NotEnoughVerifiedQuestions):
         generate_verified(gen, Judge(), "T", "P", "S", 1)
-    assert gen.calls == 2
+    assert gen.calls == MAX_GENERATION_ATTEMPTS
 
 
 def test_judge_failure_raises_verification_unavailable():

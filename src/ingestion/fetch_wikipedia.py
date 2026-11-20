@@ -30,6 +30,16 @@ CORPUS_TITLES = [
     "Psycho",
     "Il miglio verde (film)",
     "Obsession (film 2025)",
+    "Il silenzio degli innocenti (film)",
+    "Matrix",
+    "Forrest Gump",
+    "Fight Club (film)",
+    "Interstellar",
+    "Il gladiatore",
+    "Titanic (film 1997)",
+    "Il cavaliere oscuro",
+    "La vita è bella",
+    "Parasite (film 2019)",
 ]
 
 

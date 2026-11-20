@@ -2,273 +2,407 @@
 <html lang="it">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Quanto ne sai di film e serie TV?</title>
-  <style>
-    body { font-family: system-ui, sans-serif; max-width: 860px; margin: 2rem auto; padding: 0 1rem; color: #222; }
-    h1 { font-size: 1.6rem; }
-    section { border: 1px solid #ccc; border-radius: 8px; padding: 1rem; margin-bottom: 1.2rem; }
-    h2 { font-size: 1.1rem; margin-top: 0; }
-    input, button, textarea { font: inherit; padding: 0.35rem 0.6rem; margin: 0.2rem 0; }
-    textarea { width: 100%; box-sizing: border-box; min-height: 3rem; }
-    .question { margin: 0.8rem 0; }
-    .question label { display: block; margin: 0.15rem 0; }
-    .muted { color: #666; font-size: 0.9rem; }
-    .ok { color: #0a6b2d; }
-    .bad { color: #a31414; }
-    pre { background: #f6f6f6; padding: 0.6rem; white-space: pre-wrap; border-radius: 6px; }
-  </style>
+  <link rel="stylesheet" href="/static/style.css?v=8">
 </head>
 <body>
-  <h1>Quanto ne sai di film e serie TV?</h1>
-  <p class="muted">Pagina di prova del backend. Le risposte corrette restano sul server fino a quando non rispondi.
-    Documentazione interattiva: <a href="/docs">/docs</a>.</p>
+  <header>
+    <h1>Quanto ne sai di film e serie TV?</h1>
+    <div class="status">
+      <div id="who"></div>
+      <button id="logout" hidden>Esci</button>
+    </div>
+  </header>
 
-  <section>
-    <h2>1. Quiz</h2>
-    <input id="quiz-title" placeholder="Titolo (es. Inception)" value="Inception">
-    <input id="quiz-n" type="number" min="1" max="10" value="2" style="width:4rem">
-    <button id="quiz-create">Crea quiz</button>
-    <div id="quiz-output"></div>
-  </section>
+  <main id="login" hidden>
+    <h2>Entra</h2>
+    <p class="muted">Solo il nome, senza password. Il nome diventa attivo quando premi Entra.</p>
+    <div class="row">
+      <input id="name" placeholder="Il tuo nome" aria-label="Il tuo nome" autocomplete="off">
+      <button id="enter">Entra</button>
+    </div>
+    <p id="login-status" class="muted"></p>
+  </main>
 
-  <section>
-    <h2>2. Rispondi al quiz</h2>
-    <p class="muted">Crea prima un quiz nella sezione 1: le domande compaiono qui sotto.</p>
-    <div id="answer-form"></div>
-    <input id="player" placeholder="Nome giocatore" value="Anna">
-    <button id="quiz-submit" disabled>Invia risposte</button>
-    <div id="answer-output"></div>
-  </section>
+  <main id="app" hidden>
+    <section>
+      <h2>Chat con l'agente</h2>
+      <p class="muted">Chiedi un quiz, fai una domanda su un film o scegli un titolo dall'elenco. Invio per inviare, Shift+Invio per andare a capo.</p>
+      <div id="log" aria-live="polite" aria-label="Conversazione"></div>
+      <textarea id="message" placeholder="Es. Fammi un quiz di 2 domande su Inception" aria-label="Messaggio"></textarea>
+      <div class="row">
+        <button id="send">Invia</button>
+        <button id="reset">Nuova sessione</button>
+        <span id="status" class="muted"></span>
+      </div>
+      <div class="muted" id="session"></div>
+    </section>
 
-  <section>
-    <h2>3. Sfida a due</h2>
-    <p class="muted">Lo sfidante risponde al quiz creato sopra e riceve un codice. L'avversario usa il codice.</p>
-    <button id="challenge-create" disabled>Crea sfida con le risposte sopra</button>
-    <div id="challenge-created"></div>
-    <input id="challenge-code" placeholder="Codice sfida">
-    <input id="opponent" placeholder="Nome avversario" value="Luca">
-    <button id="challenge-join">Accetta sfida</button>
-    <div id="challenge-output"></div>
-  </section>
+    <aside class="side">
+      <details id="films" open>
+        <summary>Film e serie <span id="film-count"></span></summary>
+        <input id="film-filter" type="search" placeholder="Cerca un titolo" aria-label="Cerca un titolo">
+        <ul id="titles"></ul>
+      </details>
 
-  <section>
-    <h2>4. Chat con l'agente</h2>
-    <textarea id="chat-message" placeholder="Es. Fammi un quiz di 2 domande su Inception"></textarea>
-    <button id="chat-send">Invia</button>
-    <button id="chat-reset">Nuova sessione</button>
-    <div class="muted" id="chat-session"></div>
-    <div id="chat-output"></div>
-  </section>
+      <section>
+        <h2>Classifica</h2>
+        <div id="board"></div>
+        <div class="row"><button id="refresh">Aggiorna</button></div>
+      </section>
+    </aside>
+  </main>
 
-  <section>
-    <h2>5. Classifica</h2>
-    <button id="leaderboard-refresh">Aggiorna</button>
-    <div id="leaderboard-output"></div>
-  </section>
-
+<script src="/static/common.js?v=8"></script>
 <script>
-  const $ = (id) => document.getElementById(id);
-  let currentQuiz = null;   // {quiz_id, questions}
-  let chatSession = null;
+  let session = null;
+  const log = document.getElementById("log");
+  const message = document.getElementById("message");
+  const send = document.getElementById("send");
+  const status = document.getElementById("status");
 
-  async function api(method, path, body) {
-    const res = await fetch(path, {
-      method,
-      headers: body ? { "Content-Type": "application/json" } : {},
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.detail || `Errore ${res.status}`);
-    return data;
+  // Scrolls only the conversation box, never the page. toTop: show the start of the new turn;
+  // otherwise just bring the bottom of the element into view.
+  function reveal(node, toTop) {
+    const box = log.getBoundingClientRect();
+    const rect = node.getBoundingClientRect();
+    if (toTop) {
+      log.scrollTo({ top: log.scrollTop + rect.top - box.top - 8, behavior: "smooth" });
+    } else if (rect.bottom > box.bottom) {
+      log.scrollTo({ top: log.scrollTop + rect.bottom - box.bottom + 8, behavior: "smooth" });
+    }
   }
 
-  // Build DOM nodes with textContent only: server text is never interpreted as HTML.
-  function el(tag, text, cls) {
-    const node = document.createElement(tag);
-    node.textContent = text;
-    if (cls) node.className = cls;
-    return node;
-  }
-
-  function showError(container, err) {
-    container.replaceChildren(el("p", err.message, "bad"));
-  }
-
-  // ---- 1. Quiz
-  $("quiz-create").onclick = async () => {
-    const out = $("quiz-output");
-    const form = $("answer-form");
-    try {
-      const data = await api("POST", "/quiz", {
-        title: $("quiz-title").value,
-        n_questions: Number($("quiz-n").value),
+  // Under an answered quiz: pick a registered player and challenge him with the same quiz.
+  function challengeOffer(quizId) {
+    const box = el("div", "", "offer");
+    box.appendChild(el("p", "Vuoi sfidare un altro giocatore con questo quiz?", "muted"));
+    const row = el("div", "", "row");
+    const select = document.createElement("select");
+    select.setAttribute("aria-label", "Avversario");
+    const button = el("button", "Sfida");
+    const out = document.createElement("div");
+    row.append(select, button);
+    box.append(row, out);
+    api("GET", "/players").then((data) => {
+      const me = getPlayer().toLowerCase();
+      data.players.filter((p) => p.toLowerCase() !== me).forEach((p) => {
+        const opt = el("option", p);
+        opt.value = p;
+        select.appendChild(opt);
       });
-      currentQuiz = data;
-      out.replaceChildren(el("p", `Quiz creato: ${data.questions.length} domande. Rispondi nella sezione 2.`, "ok"));
-      form.replaceChildren();
-      data.questions.forEach((q) => {
-        const box = el("div", "", "question");
-        box.appendChild(el("strong", `${q.position + 1}. ${q.question}`));
-        q.options.forEach((opt, i) => {
-          const label = el("label", "");
-          const radio = document.createElement("input");
-          radio.type = "radio";
-          radio.name = `q${q.position}`;
-          radio.value = String(i);
-          label.appendChild(radio);
-          label.appendChild(document.createTextNode(` ${opt}`));
-          box.appendChild(label);
+      if (!select.options.length) {
+        select.appendChild(el("option", "Nessun altro giocatore registrato"));
+        button.disabled = true;
+      }
+    }).catch((err) => showError(out, err));
+    button.onclick = async () => {
+      const opponent = select.value;
+      if (!opponent) return;
+      if (!window.confirm(`Stai per sfidare ${opponent} con questo quiz. Il tuo punteggio è già registrato e non si cambia. Confermi?`)) return;
+      button.disabled = true;
+      try {
+        const data = await api("POST", `/quiz/${encodeURIComponent(quizId)}/challenge`, {
+          challenger: requirePlayer(),
+          opponent,
         });
-        form.appendChild(box);
-      });
-      $("quiz-submit").disabled = false;
-      $("challenge-create").disabled = false;
-    } catch (err) {
-      showError(out, err);
-    }
-  };
+        out.replaceChildren(
+          el("p", `Sfida inviata a ${data.opponent}. Comunica il codice all'avversario.`, "ok"),
+          ticket("Codice", data.code, "code"),
+        );
+        reveal(out, false);
+      } catch (err) {
+        button.disabled = false;
+        showError(out, err);
+      }
+    };
+    return box;
+  }
 
-  function collectAnswers() {
-    return currentQuiz.questions.map((q) => {
-      const checked = document.querySelector(`input[name="q${q.position}"]:checked`);
-      return checked ? Number(checked.value) : null;
+  // The player's challenges, as a list. An invited opponent who has not played yet gets a "Gioca" button.
+  function challengesBox(items) {
+    const box = el("div", "", "msg bot quiz");
+    items.forEach((c) => {
+      const row = el("div", "", "challenge-item");
+      const game = document.createElement("div");
+      row.appendChild(el("span", c.code, "code"));
+      const who = c.role === "avversario" ? `da ${c.challenger}` : c.invited ? `contro ${c.invited}` : "aperta";
+      row.appendChild(el("span", `${c.role}, ${c.status}, ${who}`, "info"));
+      if (c.role === "avversario" && c.status === "in attesa") {
+        const play = el("button", "Accetta");
+        play.onclick = () => { play.disabled = true; playChallenge(c.code, game); };
+        row.appendChild(play);
+      }
+      box.append(row, game);
     });
+    return box;
   }
 
-  function renderScore(container, data) {
-    container.replaceChildren(
-      el("p", `Punteggio: ${data.points} su ${data.total}`, "ok"),
-      el("p", `Senza risposta: ${data.unanswered}`, "muted"),
-      el("p", `Fonti: ${(data.sources || []).join(", ")}`, "muted"),
-    );
-  }
-
-  // ---- 2. Answers
-  $("quiz-submit").onclick = async () => {
-    const out = $("answer-output");
+  async function playChallenge(code, host) {
     try {
-      const data = await api("POST", "/answer", {
-        quiz_id: currentQuiz.quiz_id,
-        player: $("player").value,
-        answers: collectAnswers(),
-      });
-      renderScore(out, data);
-    } catch (err) {
-      showError(out, err);
-    }
-  };
-
-  // ---- 3. Challenge
-  $("challenge-create").onclick = async () => {
-    const out = $("challenge-created");
-    try {
-      const data = await api("POST", "/challenge", {
-        quiz_id: currentQuiz.quiz_id,
-        player: $("player").value,
-        answers: collectAnswers(),
-      });
-      out.replaceChildren(el("p", `Codice sfida: ${data.code}`, "ok"));
-      $("challenge-code").value = data.code;
-    } catch (err) {
-      showError(out, err);
-    }
-  };
-
-  $("challenge-join").onclick = async () => {
-    const out = $("challenge-output");
-    try {
-      const code = $("challenge-code").value.trim();
       const status = await api("GET", `/challenge/${encodeURIComponent(code)}`);
       if (status.status === "completed") {
-        out.replaceChildren(el("p", "Sfida già completata.", "muted"));
+        host.replaceChildren(el("p", "Sfida già completata.", "muted"));
         return;
       }
-      // Opponent answers the same questions in the same order: use the questions the server returned.
-      const answers = [];
-      const form = document.createElement("div");
-      status.questions.forEach((q) => {
-        form.appendChild(el("strong", `${q.position + 1}. ${q.question}`));
-        q.options.forEach((opt, i) => {
-          const label = el("label", "");
-          const radio = document.createElement("input");
-          radio.type = "radio";
-          radio.name = `c${q.position}`;
-          radio.value = String(i);
-          label.appendChild(radio);
-          label.appendChild(document.createTextNode(` ${opt}`));
-          form.appendChild(label);
-        });
-      });
-      const send = el("button", "Invia risposte sfida");
-      send.onclick = async () => {
-        const choices = status.questions.map((q) => {
-          const c = document.querySelector(`input[name="c${q.position}"]:checked`);
-          return c ? Number(c.value) : null;
-        });
+      const prefix = `ch-${code}-`;
+      const intro = el("p", `Hai accettato la sfida di ${status.challenger}. Rispondi alle domande e inviale.`, "ok");
+      const form = questionForm(prefix, status.questions);
+      const submit = el("button", "Invia risposte");
+      const result = document.createElement("div");
+      submit.onclick = async () => {
+        submit.disabled = true;
         try {
           const done = await api("POST", `/challenge/${encodeURIComponent(code)}/answer`, {
-            player: $("opponent").value,
-            answers: choices,
+            player: requirePlayer(),
+            answers: collectAnswers(prefix, status.questions),
           });
-          const lines = Object.entries(done.scores).map(([p, s]) => `${p}: ${s}`);
-          out.replaceChildren(
-            el("p", `Punteggi: ${lines.join(" | ")}`, "ok"),
-            el("p", done.winner ? `Vincitore: ${done.winner}` : "Pareggio", "ok"),
+          markResults(prefix, status.questions, done.you.results);
+          loadBoard();
+          form.querySelectorAll("input").forEach((input) => { input.disabled = true; });
+          submit.remove();
+          result.replaceChildren(
+            ...Object.entries(done.scores).map(([p, s]) => ticket(p, s)),
+            el("p", done.winner ? `Vince ${done.winner}.` : "Pareggio.", "ok"),
           );
+          reveal(result, false);
         } catch (err) {
-          showError(out, err);
+          submit.disabled = false;
+          showError(result, err);
         }
       };
-      out.replaceChildren(form, send);
+      host.replaceChildren(intro, form, submit, result);
+      reveal(host, true);
     } catch (err) {
-      showError(out, err);
+      showError(host, err);
     }
-  };
+  }
 
-  // ---- 4. Chat
-  $("chat-send").onclick = async () => {
-    const out = $("chat-output");
-    const message = $("chat-message").value.trim();
-    if (!message) return;
-    try {
-      const data = await api("POST", "/chat", { message, session_id: chatSession });
-      chatSession = data.session_id;
-      $("chat-session").textContent = `Sessione: ${chatSession}`;
-      const block = el("div", "", "question");
-      block.appendChild(el("strong", "Tu: " + message));
-      block.appendChild(el("pre", data.answer));
-      if (data.tools_called.length) {
-        block.appendChild(el("div", "Tool usati: " + data.tools_called.join(", "), "muted"));
+  // A quiz created by the agent: a form inside the chat. After sending, the bot says which answers are right or wrong.
+  function quizBox(quiz) {
+    const box = el("div", "", "msg bot quiz");
+    const prefix = `chat-${quiz.quiz_id}-`;
+    const form = questionForm(prefix, quiz.questions);
+    const submit = el("button", "Invia risposte");
+    const result = document.createElement("div");
+    submit.onclick = async () => {
+      submit.disabled = true;
+      try {
+        const data = await api("POST", "/answer", {
+          quiz_id: quiz.quiz_id,
+          player: requirePlayer(),
+          answers: collectAnswers(prefix, quiz.questions),
+        });
+        markResults(prefix, quiz.questions, data.results);
+        loadBoard();
+        form.querySelectorAll("input").forEach((input) => { input.disabled = true; });
+        submit.remove();
+        const lines = quiz.questions.map((q, i) => {
+          const answered = document.querySelector(`input[name="${prefix}${q.position}"]:checked`);
+          return `Domanda ${i + 1}: ${!answered ? "senza risposta" : data.results[i] ? "giusta" : "sbagliata"}`;
+        });
+        const reply = el("div", "", "msg bot");
+        reply.appendChild(el("strong", `Hai risposto bene a ${data.correct} domande su ${data.total}.`));
+        reply.appendChild(document.createTextNode("\n" + lines.join("\n")));
+        if ((data.sources || []).length) {
+          reply.appendChild(el("div", `Fonti: ${[...new Set(data.sources)].join(", ")}`, "tools"));
+        }
+        result.replaceChildren(reply, challengeOffer(quiz.quiz_id));
+        reveal(result, false);
+      } catch (err) {
+        submit.disabled = false;
+        result.replaceChildren(el("p", err.message, "bad"));
       }
-      out.appendChild(block);
-      $("chat-message").value = "";
+    };
+    box.append(form, submit, result);
+    return box;
+  }
+
+  // On opening the chat (and after a reset): the challenges waiting for this player, with an Accept button.
+  async function showPendingInvites() {
+    const me = getPlayer();
+    if (!me) return;
+    try {
+      const data = await api("GET", `/players/${encodeURIComponent(me)}/challenges`, null, { "X-Player": me });
+      const pending = data.challenges.filter((c) => c.role === "avversario" && c.status === "in attesa");
+      if (!pending.length) return;
+      const turn = el("div", "", "turn");
+      const names = [...new Set(pending.map((c) => c.challenger))].join(", ");
+      turn.appendChild(el("div", pending.length === 1 ? `${names} ti ha sfidato. Vuoi accettare?` : `Hai ${pending.length} sfide in attesa (da ${names}). Quale vuoi accettare?`, "msg bot"));
+      turn.appendChild(challengesBox(pending));
+      log.appendChild(turn);
     } catch (err) {
-      out.appendChild(el("p", err.message, "bad"));
+      // The invitations are a convenience: a failure here must not block the chat.
+    }
+  }
+
+  async function sendMessage() {
+    const text = message.value.trim();
+    if (!text) return;
+    send.disabled = true;
+    status.textContent = "L'agente sta rispondendo…";
+    try {
+      const data = await api("POST", "/chat", { player: requirePlayer(), message: text, session_id: session });
+      session = data.session_id;
+      document.getElementById("session").textContent = `Sessione: ${session}`;
+      const block = el("div", "", "turn");
+      block.appendChild(el("div", text, "msg me"));
+      block.appendChild(el("div", data.answer, "msg bot"));
+      (data.quizzes || []).forEach((quiz) => {
+        if (quiz.questions.length) block.appendChild(quizBox(quiz));
+      });
+      if ((data.challenges || []).length) block.appendChild(challengesBox(data.challenges));
+      if (data.accept) {
+        const game = el("div", "", "msg bot quiz");
+        block.appendChild(game);
+        await playChallenge(data.accept, game);
+      }
+      if (data.tools_called.length) {
+        block.appendChild(el("div", "Strumenti usati: " + data.tools_called.join(", "), "tools"));
+      }
+      log.appendChild(block);
+      message.value = "";
+      reveal(block, true);
+    } catch (err) {
+      log.appendChild(el("p", err.message, "bad"));
+    } finally {
+      send.disabled = false;
+      status.textContent = "";
+      message.focus({ preventScroll: true });
+    }
+  }
+
+  send.onclick = sendMessage;
+  message.onkeydown = (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      sendMessage();
     }
   };
 
-  $("chat-reset").onclick = async () => {
-    if (chatSession) await api("DELETE", `/chat/${encodeURIComponent(chatSession)}`).catch(() => {});
-    chatSession = null;
-    $("chat-session").textContent = "";
-    $("chat-output").replaceChildren();
+  document.getElementById("reset").onclick = async () => {
+    if (session) await api("DELETE", `/chat/${encodeURIComponent(session)}`).catch(() => {});
+    session = null;
+    document.getElementById("session").textContent = "";
+    log.replaceChildren();
+    showPendingInvites();
   };
 
-  // ---- 5. Leaderboard
-  $("leaderboard-refresh").onclick = async () => {
-    const out = $("leaderboard-output");
+  // ---- Login: the name becomes active only when the user presses "Entra".
+  const loginBox = document.getElementById("login");
+  const appBox = document.getElementById("app");
+  const logout = document.getElementById("logout");
+  let started = false;
+
+  function showApp() {
+    const name = getPlayer();
+    loginBox.hidden = Boolean(name);
+    appBox.hidden = !name;
+    logout.hidden = !name;
+    renderHeader();
+    if (name && !started) {
+      started = true;
+      loadTitles();
+      loadBoard();
+      showPendingInvites();
+      message.focus({ preventScroll: true });
+    }
+  }
+
+  document.getElementById("name").value = getPlayer();
+  document.getElementById("enter").onclick = async () => {
+    const out = document.getElementById("login-status");
+    const name = document.getElementById("name").value.trim();
+    if (!name) { out.textContent = "Inserisci un nome."; return; }
+    try {
+      const data = await api("POST", "/players", { name });
+      setPlayer(data.name);
+      out.textContent = "";
+      log.replaceChildren();
+      appendWelcome(data);
+      showApp();
+    } catch (err) {
+      out.textContent = err.message;
+    }
+  };
+  document.getElementById("name").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") document.getElementById("enter").click();
+  });
+
+  function appendWelcome(data) {
+    const turn = el("div", "", "turn");
+    const hello = data.created ? `Benvenuto, ${data.name}!` : `Bentornato, ${data.name}!`;
+    turn.appendChild(el("div", `${hello} Scegli un film dall'elenco o scrivimi cosa vuoi fare.`, "msg bot"));
+    log.appendChild(turn);
+  }
+
+  logout.onclick = async () => {
+    if (session) await api("DELETE", `/chat/${encodeURIComponent(session)}`).catch(() => {});
+    session = null;
+    started = false;
+    clearPlayer();
+    log.replaceChildren();
+    document.getElementById("session").textContent = "";
+    document.getElementById("name").value = "";
+    showApp();
+  };
+
+  // ---- Films and series the questions can be about. "Quiz" and "Info" write the request in the chat.
+  function ask(text) {
+    if (send.disabled) return;
+    message.value = text;
+    sendMessage();
+  }
+
+  async function loadTitles() {
+    const list = document.getElementById("titles");
+    try {
+      const data = await api("GET", "/titles");
+      if (!data.titles.length) throw new Error("Nessun titolo disponibile nel corpus");
+      document.getElementById("film-count").textContent = `(${data.titles.length})`;
+      list.replaceChildren(...data.titles.map((t) => {
+        const label = t.replace(/\s*\([^)]*\)/g, "");
+        const row = el("li", "");
+        row.dataset.name = label.toLowerCase();
+        row.appendChild(el("span", label, "name"));
+        const quiz = el("button", "Quiz", "mini quiz-btn");
+        quiz.title = `Crea un quiz su ${label}`;
+        quiz.onclick = () => ask(`Fammi un quiz su ${label}`);
+        const info = el("button", "Info", "mini info-btn");
+        info.title = `Fai una domanda su ${label}`;
+        info.onclick = () => ask(`Parlami di ${label}`);
+        row.append(quiz, info);
+        return row;
+      }));
+    } catch (err) {
+      list.replaceChildren(el("li", err.message, "bad"));
+    }
+  }
+
+  document.getElementById("film-filter").addEventListener("input", (event) => {
+    const wanted = event.target.value.trim().toLowerCase();
+    document.querySelectorAll("#titles li").forEach((row) => {
+      row.hidden = Boolean(wanted) && !(row.dataset.name || "").includes(wanted);
+    });
+  });
+
+  // ---- Leaderboard
+  async function loadBoard() {
+    const out = document.getElementById("board");
     try {
       const data = await api("GET", "/leaderboard");
       if (!data.leaderboard.length) {
         out.replaceChildren(el("p", "Nessuna partita ancora.", "muted"));
         return;
       }
+      const me = getPlayer().toLowerCase();
       const table = document.createElement("table");
       const head = el("tr", "");
       ["Giocatore", "Punti", "Partite"].forEach((h) => head.appendChild(el("th", h)));
       table.appendChild(head);
       data.leaderboard.forEach((row) => {
-        const tr = el("tr", "");
+        const tr = el("tr", "", row.player.toLowerCase() === me ? "me" : "");
         [row.player, row.points, row.games].forEach((v) => tr.appendChild(el("td", String(v))));
         table.appendChild(tr);
       });
@@ -276,7 +410,10 @@
     } catch (err) {
       showError(out, err);
     }
-  };
+  }
+  document.getElementById("refresh").onclick = loadBoard;
+
+  showApp();
 </script>
 </body>
 </html>

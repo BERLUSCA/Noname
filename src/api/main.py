@@ -3,21 +3,27 @@
 Scoring is code, never the LLM. Every paid call is counted by the session budget.
 """
 
+import asyncio
+import logging
 import os
 import secrets
+import threading
 import time
+from contextlib import asynccontextmanager
 from collections.abc import Callable
+import json
 from pathlib import Path
 
 from datapizza.core.clients import Client
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, Header, HTTPException
+from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from src.agent.chat import run_chat
 from src.agent.memory import WINDOW_SIZE, render_history
 from src.agent.tools import ChatContext
-from src.api.db import Database
+from src.api.db import Database, player_key
 from src.observability.budget import BudgetExceeded, SessionBudget
 from src.observability.logger import CallLogger
 from src.quiz.generator import QuizGenerator
@@ -31,6 +37,17 @@ from src.rag.verifier import FactVerifier
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DB_PATH = ROOT / "data" / "app.db"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
+PAGE_ROUTES = {"/"}  # the single HTML page: always revalidated
+OLD_PAGES = ("/quiz", "/sfide", "/chat", "/classifica")  # removed pages: redirected to the single page
+
+
+def corpus_titles() -> list[str]:
+    """Titles of the corpus, read from the manifest (no model is loaded)."""
+    manifest = ROOT / "data" / "raw" / "manifest.json"
+    if not manifest.exists():
+        return []
+    entries = json.loads(manifest.read_text(encoding="utf-8"))
+    return sorted((e["title"] for e in entries), key=str.lower)
 
 
 class QuizRequest(BaseModel):
@@ -44,12 +61,29 @@ class AnswerRequest(BaseModel):
     answers: list[int | None]
 
 
+class PlayerRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=40)
+
+
+class NamedChallengeRequest(BaseModel):
+    quiz_id: str
+    challenger: str = Field(min_length=1, max_length=40)
+    opponent: str = Field(min_length=1, max_length=40)
+    answers: list[int | None]
+
+
+class QuizChallengeRequest(BaseModel):
+    challenger: str = Field(min_length=1, max_length=40)
+    opponent: str = Field(min_length=1, max_length=40)
+
+
 class ChallengeAnswerRequest(BaseModel):
     player: str = Field(min_length=1, max_length=40)
     answers: list[int | None]
 
 
 class ChatRequest(BaseModel):
+    player: str = Field(min_length=1, max_length=40)
     message: str = Field(min_length=1, max_length=1000)
     # Omit to start a new session; reuse the returned id to continue the conversation.
     session_id: str | None = Field(default=None, min_length=1, max_length=64)
@@ -72,29 +106,79 @@ def create_app(
     chat_client_factory: Callable[[], Client] | None = None,
     call_logger: CallLogger | None = None,
     budget: SessionBudget | None = None,
+    preload: bool = False,
 ) -> FastAPI:
     app = FastAPI(title="Quanto ne sai di film e serie TV?")
     state: dict[str, object] = {}
+    lock = threading.RLock()  # several pages may open at once: each component is built once
 
-    # Components are built on first use, so the app starts (and tests run) without API keys.
+    # Components are built on first use (or by POST /warmup when a page opens), so the app starts
+    # and tests run without API keys.
     def get_generator() -> QuizGenerator:
-        if "generator" not in state:
-            state["generator"] = generator_factory()
-        return state["generator"]
+        with lock:
+            if "generator" not in state:
+                state["generator"] = generator_factory()
+            return state["generator"]
 
     def get_retriever() -> TitleRetriever:
-        if "retriever" not in state:
-            try:
-                state["retriever"] = retriever_factory()
-            except IndexMismatch as exc:
-                # The index does not match the corpus or the model: refuse, do not serve stale answers.
-                raise HTTPException(status_code=503, detail=f"Indice non allineato: {exc}") from exc
-        return state["retriever"]
+        with lock:
+            if "retriever" not in state:
+                try:
+                    state["retriever"] = retriever_factory()
+                except IndexMismatch as exc:
+                    # The index does not match the corpus or the model: refuse, do not serve stale answers.
+                    raise HTTPException(status_code=503, detail=f"Indice non allineato: {exc}") from exc
+            return state["retriever"]
 
     def get_verifier() -> FactVerifier:
-        if "verifier" not in state:
-            state["verifier"] = verifier_factory()
-        return state["verifier"]
+        with lock:
+            if "verifier" not in state:
+                state["verifier"] = verifier_factory()
+            return state["verifier"]
+
+    def get_chat_client() -> Client:
+        with lock:
+            if "chat_client" not in state:
+                state["chat_client"] = chat_client_factory()
+            return state["chat_client"]
+
+    def warm_up() -> dict[str, str]:
+        """Loads every component now. Returns 'ok' or the reason for each one; never raises."""
+        status: dict[str, str] = {}
+        for name, load in [("indice", get_retriever), ("generatore", get_generator),
+                           ("giudice", get_verifier)]:
+            try:
+                load()
+                status[name] = "ok"
+            except HTTPException as exc:
+                status[name] = str(exc.detail)
+            except Exception as exc:  # missing key, unreachable model, ...
+                status[name] = f"errore: {exc}"
+        if chat_client_factory is None:
+            status["chat"] = "non configurata"
+        else:
+            try:
+                get_chat_client()
+                status["chat"] = "ok"
+            except Exception as exc:
+                status["chat"] = f"errore: {exc}"
+        return status
+
+    if preload:
+        # Load the models when the application starts, before it accepts requests.
+        @asynccontextmanager
+        async def lifespan(_app: FastAPI):
+            status = await asyncio.to_thread(warm_up)  # blocking loads run off the event loop
+            logging.getLogger("uvicorn.error").info("Componenti caricati all'avvio: %s", status)
+            yield
+
+        app.router.lifespan_context = lifespan
+
+    @app.post("/warmup")
+    def warmup() -> dict:
+        """Called by every test page when it opens: loads the models before the first question."""
+        status = warm_up()
+        return {"ready": all(v == "ok" for v in status.values()), "components": status}
 
     def check_budget() -> None:
         # Fail closed: refuse paid calls when the session budget is exhausted or not configured.
@@ -118,10 +202,34 @@ def create_app(
         db.save_attempt(quiz_id, player, result.points, result.correct, result.total)
         return result
 
-    @app.get("/", include_in_schema=False)
-    def ui() -> FileResponse:
-        # Test page for the backend (static HTML, no build). Interactive docs are at /docs.
-        return FileResponse(STATIC_DIR / "index.html")
+    # Test pages for the backend (static HTML + plain JavaScript, no build). Interactive docs: /docs.
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+    @app.middleware("http")
+    async def revalidate_static(request, call_next):
+        # Without this a browser can keep an old common.js next to a new page ("markResults is not defined").
+        response = await call_next(request)
+        if request.url.path.startswith("/static/") or request.url.path in PAGE_ROUTES:
+            response.headers["Cache-Control"] = "no-cache"
+        return response
+
+    def page(name: str) -> Callable[[], FileResponse]:
+        def serve() -> FileResponse:
+            return FileResponse(STATIC_DIR / name)
+        return serve
+
+    app.add_api_route("/", page("index.html"), include_in_schema=False, response_class=FileResponse)
+
+    def to_home() -> RedirectResponse:
+        return RedirectResponse("/")
+
+    for old in OLD_PAGES:  # old bookmarks still work
+        app.add_api_route(old, to_home, include_in_schema=False, methods=["GET"])
+
+    @app.get("/titles")
+    def titles() -> dict:
+        """Films and series the quizzes and questions can be about."""
+        return {"titles": corpus_titles()}
 
     @app.get("/health")
     def health() -> dict:
@@ -165,13 +273,19 @@ def create_app(
         if chat_client_factory is None:
             raise HTTPException(status_code=503, detail="Chat non configurata")
         check_budget()
+        # A chat session belongs to one player: another player cannot read or extend it.
+        if body.session_id and db.chat_session_owner(body.session_id) not in (None, player_key(body.player)):
+            raise HTTPException(status_code=403, detail="Questa sessione appartiene a un altro giocatore")
         session_id = body.session_id or secrets.token_hex(16)
+        db.claim_chat_session(session_id, body.player)
         db.purge_chat_older_than(SESSION_TTL_HOURS)
         history_block = render_history(
             db.recent_chat_messages(session_id, WINDOW_SIZE), db.chat_quiz_ids(session_id)
         )
-        client = chat_client_factory()
-        ctx = ChatContext(db=db, retriever=get_retriever(), generator=get_generator(), verifier=get_verifier())
+        client = get_chat_client()
+        ctx = ChatContext(db=db, retriever=get_retriever(), generator=get_generator(), verifier=get_verifier(),
+                          player=body.player, titles=corpus_titles(), history=db.recent_chat_messages(session_id, WINDOW_SIZE),
+                          session_quiz_ids=db.chat_quiz_ids(session_id))
         started = time.perf_counter()
         try:
             result = run_chat(client, ctx, body.message, history_block)
@@ -197,6 +311,21 @@ def create_app(
             "answer": result.answer,
             "tools_called": result.tools_called,
             "quiz_ids": result.quiz_ids,
+            # Set only when the agent listed the player's challenges (codes, roles, status: no scores).
+            "challenges": ctx.challenges,
+            # Code of a challenge accepted in this turn: the page opens its questions in the chat.
+            "accept": ctx.challenge_to_play,
+            # Questions of the quizzes created in this turn, so the page can show a form. Never the correct answers.
+            "quizzes": [
+                {
+                    "quiz_id": quiz_id,
+                    "questions": [
+                        {"position": i, "question": q.question, "options": list(q.options)}
+                        for i, q in enumerate(db.get_questions(quiz_id) or [])
+                    ],
+                }
+                for quiz_id in result.quiz_ids
+            ],
         }
 
     @app.delete("/chat/{session_id}")
@@ -217,6 +346,63 @@ def create_app(
             # Sources are shown only after answering, never the correct option.
             "sources": [q.source for q in db.get_questions(body.quiz_id)],
         }
+
+    @app.post("/players")
+    def register_player(body: PlayerRequest) -> dict:
+        """Registers a name (no password). Idempotent: created=False if the name already exists."""
+        created = db.add_player(body.name)
+        return {"name": body.name.strip(), "created": created}
+
+    @app.get("/players")
+    def list_players() -> dict:
+        return {"players": db.list_players()}
+
+    @app.post("/challenges", status_code=201)
+    def create_named_challenge(body: NamedChallengeRequest) -> dict:
+        """Challenger answers the quiz and invites a registered opponent. The opponent answers with the code."""
+        if not db.has_player(body.challenger):
+            raise HTTPException(status_code=400, detail="Registra prima il tuo nome")
+        if not db.has_player(body.opponent):
+            raise HTTPException(status_code=400, detail="L'avversario deve essere tra i giocatori registrati")
+        if player_key(body.opponent) == player_key(body.challenger):
+            raise HTTPException(status_code=400, detail="Non puoi sfidare te stesso")
+        result = score_and_save(body.quiz_id, body.challenger, body.answers)
+        code = secrets.token_hex(3).upper()
+        db.create_challenge(code, body.quiz_id, body.challenger, invited=body.opponent)
+        return {"code": code, "challenger": body.challenger, "opponent": body.opponent,
+                "status": "pending", "points": result.points}
+
+    @app.post("/quiz/{quiz_id}/challenge", status_code=201)
+    def challenge_with_answered_quiz(quiz_id: str, body: QuizChallengeRequest) -> dict:
+        """Challenges a registered player with a quiz the challenger has already answered (score taken from the attempt)."""
+        if db.get_questions(quiz_id) is None:
+            raise HTTPException(status_code=404, detail="Quiz non trovato")
+        if not db.has_player(body.challenger):
+            raise HTTPException(status_code=400, detail="Registra prima il tuo nome")
+        if not db.has_player(body.opponent):
+            raise HTTPException(status_code=400, detail="L'avversario deve essere tra i giocatori registrati")
+        if player_key(body.opponent) == player_key(body.challenger):
+            raise HTTPException(status_code=400, detail="Non puoi sfidare te stesso")
+        attempt = db.get_attempt(quiz_id, body.challenger)
+        if attempt is None:
+            raise HTTPException(status_code=400, detail="Rispondi prima al quiz, poi sfida un giocatore")
+        if db.has_attempt(quiz_id, body.opponent):
+            raise HTTPException(status_code=409, detail="L'avversario ha già risposto a questo quiz")
+        code = secrets.token_hex(3).upper()
+        db.create_challenge(code, quiz_id, body.challenger, invited=body.opponent)
+        return {"code": code, "challenger": body.challenger, "opponent": body.opponent,
+                "status": "pending", "points": attempt["points"]}
+
+    @app.get("/players/{name}/challenges")
+    def player_challenges(name: str, x_player: str | None = Header(default=None)) -> dict:
+        """Only the player's own challenges: the caller must declare the same name in the X-Player header.
+
+        Names are not passwords, so this is an identity declared by the client, not an authentication.
+        Codes, names, dates and status only: no scores, no answers.
+        """
+        if x_player is None or player_key(x_player) != player_key(name):
+            raise HTTPException(status_code=403, detail="Vedi solo le tue sfide")
+        return {"challenges": db.challenges_for(name)}
 
     @app.post("/challenge", status_code=201)
     def create_challenge(body: AnswerRequest) -> dict:
@@ -265,6 +451,8 @@ def create_app(
             raise HTTPException(status_code=404, detail="Sfida non trovata")
         if body.player == challenge["challenger"]:
             raise HTTPException(status_code=400, detail="Lo sfidante non può rispondere alla propria sfida")
+        if challenge["invited"] is not None and player_key(body.player) != player_key(challenge["invited"]):
+            raise HTTPException(status_code=403, detail="Questa sfida è riservata a un altro giocatore")
         if challenge["opponent"] not in (None, body.player):
             raise HTTPException(status_code=409, detail="La sfida è già stata accettata da un altro giocatore")
         result = score_and_save(challenge["quiz_id"], body.player, body.answers)
@@ -321,4 +509,5 @@ app = create_app(
     chat_client_factory=_agent_client_from_env,
     call_logger=SESSION_LOGGER,
     budget=SESSION_BUDGET,
+    preload=True,
 )

@@ -9,6 +9,11 @@ from pathlib import Path
 
 from src.quiz.generator import Question
 
+
+def player_key(name: str) -> str:
+    """Canonical form of a player name: trimmed, single spaces, case-insensitive."""
+    return " ".join(name.split()).casefold()
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS quizzes (
     id TEXT PRIMARY KEY,
@@ -46,7 +51,18 @@ CREATE TABLE IF NOT EXISTS challenges (
     code TEXT PRIMARY KEY,
     quiz_id TEXT NOT NULL REFERENCES quizzes(id),
     challenger TEXT NOT NULL,
+    invited TEXT,
     opponent TEXT,
+    created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS players (
+    name_key TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS chat_sessions (
+    session_id TEXT PRIMARY KEY,
+    player_key TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS attempts (
@@ -78,6 +94,14 @@ class Database:
         self.conn = sqlite3.connect(self.path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(SCHEMA)
+        self._migrate()
+
+    def _migrate(self) -> None:
+        """Adds columns introduced after a database was created (CREATE TABLE IF NOT EXISTS does not)."""
+        columns = {r["name"] for r in self.conn.execute("PRAGMA table_info(challenges)").fetchall()}
+        if "invited" not in columns:
+            with self.conn:
+                self.conn.execute("ALTER TABLE challenges ADD COLUMN invited TEXT")
 
     def save_quiz(self, title: str, questions: list[Question]) -> str:
         quiz_id = uuid.uuid4().hex
@@ -93,6 +117,10 @@ class Database:
                 ],
             )
         return quiz_id
+
+    def quiz_title(self, quiz_id: str) -> str | None:
+        row = self.conn.execute("SELECT title FROM quizzes WHERE id = ?", (quiz_id,)).fetchone()
+        return row["title"] if row else None
 
     def get_questions(self, quiz_id: str) -> list[StoredQuestion] | None:
         if not self.conn.execute("SELECT 1 FROM quizzes WHERE id = ?", (quiz_id,)).fetchone():
@@ -127,17 +155,74 @@ class Database:
         ).fetchone()
         return dict(row) if row else None
 
-    def create_challenge(self, code: str, quiz_id: str, challenger: str) -> None:
+    def create_challenge(self, code: str, quiz_id: str, challenger: str, invited: str | None = None) -> None:
         now = datetime.now(timezone.utc).isoformat()
         with self.conn:
             self.conn.execute(
-                "INSERT INTO challenges (code, quiz_id, challenger, created_at) VALUES (?, ?, ?, ?)",
-                (code, quiz_id, challenger, now),
+                "INSERT INTO challenges (code, quiz_id, challenger, invited, created_at) VALUES (?, ?, ?, ?, ?)",
+                (code, quiz_id, challenger, invited, now),
+            )
+
+    def add_player(self, name: str) -> bool:
+        """Registers a player name. False if it already exists (names are unique, case-insensitive)."""
+        now = datetime.now(timezone.utc).isoformat()
+        try:
+            with self.conn:
+                self.conn.execute(
+                    "INSERT INTO players (name_key, name, created_at) VALUES (?, ?, ?)",
+                    (player_key(name), name.strip(), now),
+                )
+        except sqlite3.IntegrityError:
+            return False
+        return True
+
+    def list_players(self) -> list[str]:
+        rows = self.conn.execute("SELECT name FROM players ORDER BY name_key").fetchall()
+        return [r["name"] for r in rows]
+
+    def has_player(self, name: str) -> bool:
+        return self.conn.execute(
+            "SELECT 1 FROM players WHERE name_key = ?", (player_key(name),)
+        ).fetchone() is not None
+
+    def challenges_for(self, name: str) -> list[dict]:
+        """Challenges where the player is the invited opponent or the challenger.
+        Only codes, names and status: never scores or answers."""
+        key = player_key(name)
+        # Filtered in Python: SQLite lower() does not fold accented letters.
+        rows = self.conn.execute(
+            "SELECT code, quiz_id, challenger, invited, opponent, created_at FROM challenges "
+            "ORDER BY created_at DESC LIMIT 500"
+        ).fetchall()
+        result = []
+        for r in rows:
+            row = dict(r)
+            is_challenger = player_key(row["challenger"]) == key
+            is_invited = row["invited"] is not None and player_key(row["invited"]) == key
+            if not (is_challenger or is_invited):
+                continue
+            row["role"] = "sfidante" if is_challenger else "avversario"
+            row["status"] = "completata" if row["opponent"] else "in attesa"
+            result.append(row)
+        return result[:50]
+
+    def chat_session_owner(self, session_id: str) -> str | None:
+        row = self.conn.execute(
+            "SELECT player_key FROM chat_sessions WHERE session_id = ?", (session_id,)
+        ).fetchone()
+        return row["player_key"] if row else None
+
+    def claim_chat_session(self, session_id: str, name: str) -> None:
+        now = datetime.now(timezone.utc).isoformat()
+        with self.conn:
+            self.conn.execute(
+                "INSERT OR IGNORE INTO chat_sessions (session_id, player_key, created_at) VALUES (?, ?, ?)",
+                (session_id, player_key(name), now),
             )
 
     def get_challenge(self, code: str) -> dict | None:
         row = self.conn.execute(
-            "SELECT code, quiz_id, challenger, opponent FROM challenges WHERE code = ?", (code,)
+            "SELECT code, quiz_id, challenger, invited, opponent FROM challenges WHERE code = ?", (code,)
         ).fetchone()
         return dict(row) if row else None
 

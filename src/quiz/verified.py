@@ -6,7 +6,7 @@ Shared by POST /quiz and by the agent's create_quiz tool, so both behave the sam
 from src.quiz.generator import Question, QuizGenerator
 from src.rag.verifier import FactVerifier, build_claim
 
-MAX_GENERATION_ATTEMPTS = 2  # guardrail 6: at most 2 generation calls + 2 judge calls per quiz
+MAX_GENERATION_ATTEMPTS = 3  # guardrail 6: at most 3 generation calls + 3 judge calls per quiz
 
 
 class VerificationUnavailable(Exception):

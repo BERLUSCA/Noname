@@ -228,3 +228,6 @@ logs/
 data/*.db
 results/
 data/index/
+.agents
+.claude
+skills-lock.json

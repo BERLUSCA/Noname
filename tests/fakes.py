@@ -20,3 +20,9 @@ class FakeVerifier:
     def verify_many(self, claims, text):
         self.calls += 1
         return ["BAD" not in claim for claim in claims]
+
+    def verify_answer(self, claim, text):
+        from src.rag.verifier import FactVerdict
+
+        self.calls += 1
+        return FactVerdict(supported="BAD" not in claim, reason="fake")

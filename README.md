@@ -51,7 +51,7 @@ Non committare mai il file `.env`: è escluso da git.
 
 ## 3. Dati: corpus e indice
 
-Il corpus è un sottoinsieme fisso di 9 pagine di Wikipedia in italiano (testo con licenza CC BY-SA),
+Il corpus è un sottoinsieme fisso di 19 pagine di Wikipedia in italiano (testo con licenza CC BY-SA),
 elencate in `src/ingestion/fetch_wikipedia.py`.
 
 ```
@@ -130,15 +130,17 @@ tests/        test offline
 1. Il punteggio delle domande chiuse lo calcola il codice, mai il modello.
 2. La risposta corretta non va al giocatore prima che risponda, e non finisce nel contesto dell'avversario.
 3. Ogni domanda ha una fonte (URL Wikipedia). Se il titolo non è nel corpus, il sistema lo dice e non inventa.
+   Le risposte della chat senza documento (conversazione, giocatori, sfide) vengono verificate dal giudice contro i dati dei tool; se non sono supportate, la risposta del modello viene mostrata con la nota «Risposta non verificata».
 4. Testo utente, storia e passaggi recuperati sono dati, non istruzioni. Ci sono test per le injection.
 5. Il reset di punteggi richiede conferma esplicita (non è esposto nell'API).
-6. Limiti: fino a 5 passi dell'agente e 5 tool per richiesta; 2 generazioni e 2 giudizi per quiz; `max_tokens` basso; `top_k` tra 3 e 5.
+6. Limiti: fino a 5 passi dell'agente e 5 tool per richiesta; 3 generazioni e 3 giudizi per quiz; `max_tokens` basso; `top_k` tra 3 e 5.
 7. Budget di sessione in euro, con blocco fail-closed.
 
 ## Limiti noti
 
 - Il controllo lessicale del retrieval perde casi buoni: il giudice LLM è il controllo principale.
+- Il controllo sulle risposte di conversazione dipende dal giudice LLM: può rifiutare parafrasi corrette o accettare affermazioni solo in parte supportate.
 - Il giudice e l'agente possono usare lo stesso modello: per una valutazione seria, usare `--judge` con un modello diverso.
 - Il budget vale per il processo del server: si azzera al riavvio.
-- Il corpus contiene solo 9 opere: il sistema risponde "non lo so" per gli altri titoli.
+- Il corpus contiene solo 19 opere: per gli altri titoli la chat risponde con la nota «Risposta non verificata», e i quiz non vengono creati.
 - Il costo stimato usa la tabella prezzi in `src/observability/pricing.py`, verificata il 2026-11-06: va riverificata prima dell'uso.

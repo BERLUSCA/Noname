@@ -3,15 +3,15 @@
     "slug": "inception",
     "title": "Inception",
     "url": "https://it.wikipedia.org/wiki/Inception",
-    "retrieved_at": "2026-11-11T21:10:42.844700+00:00",
-    "chars": 41771,
-    "sha256": "42e49943c43a4bde6b6bc8278d541f32c48e76adcf377f98d781bfd16b20fd9c"
+    "retrieved_at": "2026-11-20T10:25:28.953455+00:00",
+    "chars": 41774,
+    "sha256": "54f9910f411546c017382f0a57b2f4cb9fd60af23edab0bbd24bde5a1b2b9ede"
   },
   {
     "slug": "il_padrino_film",
     "title": "Il padrino (film)",
     "url": "https://it.wikipedia.org/wiki/Il_padrino_%28film%29",
-    "retrieved_at": "2026-11-11T21:10:42.844700+00:00",
+    "retrieved_at": "2026-11-20T10:25:28.953455+00:00",
     "chars": 38969,
     "sha256": "cbe6214b7b7221e7a0b320c172aa70de1e79f0c6434e4f609192c55abf3c2aab"
   },
@@ -19,39 +19,39 @@
     "slug": "breaking_bad",
     "title": "Breaking Bad",
     "url": "https://it.wikipedia.org/wiki/Breaking_Bad",
-    "retrieved_at": "2026-11-11T21:10:42.844700+00:00",
-    "chars": 39028,
-    "sha256": "3efb2a6864dac02bb4ce265d81c8d03659a22c45c005f7578dc54a3af8106df6"
+    "retrieved_at": "2026-11-20T10:25:28.953455+00:00",
+    "chars": 39125,
+    "sha256": "cc587a3f0c36cf7189fe17039254c4046758bb70174f924e067d0d2b31f77bc5"
   },
   {
     "slug": "friends",
     "title": "Friends",
     "url": "https://it.wikipedia.org/wiki/Friends",
-    "retrieved_at": "2026-11-11T21:10:42.844700+00:00",
-    "chars": 47794,
-    "sha256": "8938157106c0f8837cafd2d0d0f5bcb69d11ee685d609eb16e0a4d0ca69ead1f"
+    "retrieved_at": "2026-11-20T10:25:28.953455+00:00",
+    "chars": 47999,
+    "sha256": "b22edac46b1f12dd4877c4177709e7955a35e24ba227aa14f14813709ef7801c"
   },
   {
     "slug": "pulp_fiction",
     "title": "Pulp Fiction",
     "url": "https://it.wikipedia.org/wiki/Pulp_Fiction",
-    "retrieved_at": "2026-11-11T21:10:42.844700+00:00",
-    "chars": 36982,
-    "sha256": "b2930350ef6c939c69c15360b2a08a572c3a8ff0c5844498bda540006db0a964"
+    "retrieved_at": "2026-11-20T10:25:28.953455+00:00",
+    "chars": 36983,
+    "sha256": "19ab4b859f909e4f6b8ac492658e052e6bf2efde7fc6922e025cfb0b90669e1d"
   },
   {
     "slug": "il_signore_degli_anelli_la_compagnia_dell_anello",
     "title": "Il Signore degli Anelli - La Compagnia dell'Anello",
     "url": "https://it.wikipedia.org/wiki/Il_Signore_degli_Anelli_-_La_Compagnia_dell%27Anello",
-    "retrieved_at": "2026-11-11T21:10:42.844700+00:00",
-    "chars": 29843,
-    "sha256": "f6902ae1d1a48ec826039890428f656a13eaf1d94256bc59a10dd4d31c38551f"
+    "retrieved_at": "2026-11-20T10:25:28.953455+00:00",
+    "chars": 29856,
+    "sha256": "28bd2bf7f957cee24205a521d095491e2f9c5aacb337318aa4227aa6cc00668c"
   },
   {
     "slug": "psyco",
     "title": "Psyco",
     "url": "https://it.wikipedia.org/wiki/Psyco",
-    "retrieved_at": "2026-11-11T21:10:42.844700+00:00",
+    "retrieved_at": "2026-11-20T10:25:28.953455+00:00",
     "chars": 26879,
     "sha256": "44650a38276149e0d4ad83b388366b5f2a032d334a0293b7d08dbc9f341c70fa"
   },
@@ -59,7 +59,7 @@
     "slug": "il_miglio_verde_film",
     "title": "Il miglio verde (film)",
     "url": "https://it.wikipedia.org/wiki/Il_miglio_verde_%28film%29",
-    "retrieved_at": "2026-11-11T21:10:42.844700+00:00",
+    "retrieved_at": "2026-11-20T10:25:28.953455+00:00",
     "chars": 17097,
     "sha256": "71383e213aadc0d52d587d963db97987e712cf81af9d4952f86eb92b2e8c7196"
   },
@@ -67,8 +67,88 @@
     "slug": "obsession_film_2025",
     "title": "Obsession (film 2025)",
     "url": "https://it.wikipedia.org/wiki/Obsession_%28film_2025%29",
-    "retrieved_at": "2026-11-11T21:10:42.844700+00:00",
+    "retrieved_at": "2026-11-20T10:25:28.953455+00:00",
     "chars": 8794,
     "sha256": "d83f5648445eb8a8c74b148b85fe0c115cbb22b30e65641c68db27a119db5613"
+  },
+  {
+    "slug": "il_silenzio_degli_innocenti_film",
+    "title": "Il silenzio degli innocenti (film)",
+    "url": "https://it.wikipedia.org/wiki/Il_silenzio_degli_innocenti_%28film%29",
+    "retrieved_at": "2026-11-20T10:25:28.953455+00:00",
+    "chars": 12218,
+    "sha256": "24df91d74aea7c156097514c589f514a4b85d1d3f7136e2ee202ebce4b22b29c"
+  },
+  {
+    "slug": "matrix",
+    "title": "Matrix",
+    "url": "https://it.wikipedia.org/wiki/Matrix",
+    "retrieved_at": "2026-11-20T10:25:28.953455+00:00",
+    "chars": 17085,
+    "sha256": "13278084d4ad2bc60885d791aa5fddb1091de762311e1f48eeae09029f09ebd0"
+  },
+  {
+    "slug": "forrest_gump",
+    "title": "Forrest Gump",
+    "url": "https://it.wikipedia.org/wiki/Forrest_Gump",
+    "retrieved_at": "2026-11-20T10:25:28.953455+00:00",
+    "chars": 32348,
+    "sha256": "a7b46b82258290585319ec4e8eb9ef7bccfa5e779eb1f3b3fa9db4568b7e0fc1"
+  },
+  {
+    "slug": "fight_club_film",
+    "title": "Fight Club (film)",
+    "url": "https://it.wikipedia.org/wiki/Fight_Club_%28film%29",
+    "retrieved_at": "2026-11-20T10:25:28.953455+00:00",
+    "chars": 15098,
+    "sha256": "4b10694e30df46b1dc8da49eef18812d2cc2f9034b7c0730d00ad800ee9d2f7b"
+  },
+  {
+    "slug": "interstellar",
+    "title": "Interstellar",
+    "url": "https://it.wikipedia.org/wiki/Interstellar",
+    "retrieved_at": "2026-11-20T10:25:28.953455+00:00",
+    "chars": 23607,
+    "sha256": "9a976b31e8a32059621a296f3abeb5199639b14e327e2d8c2510bc01ee3312f5"
+  },
+  {
+    "slug": "il_gladiatore",
+    "title": "Il gladiatore",
+    "url": "https://it.wikipedia.org/wiki/Il_gladiatore",
+    "retrieved_at": "2026-11-20T10:25:28.953455+00:00",
+    "chars": 52779,
+    "sha256": "b4d27a07b1d02132e0b8072c21d51577d6244df6cb5b1c70fec6fe8cd7a91668"
+  },
+  {
+    "slug": "titanic_film_1997",
+    "title": "Titanic (film 1997)",
+    "url": "https://it.wikipedia.org/wiki/Titanic_%28film_1997%29",
+    "retrieved_at": "2026-11-20T10:25:28.953455+00:00",
+    "chars": 59242,
+    "sha256": "fa9a0934f354b2b5ab316573da8b607fc56a9eb4dd73af58f80c336a342e554e"
+  },
+  {
+    "slug": "il_cavaliere_oscuro",
+    "title": "Il cavaliere oscuro",
+    "url": "https://it.wikipedia.org/wiki/Il_cavaliere_oscuro",
+    "retrieved_at": "2026-11-20T10:25:28.953455+00:00",
+    "chars": 81953,
+    "sha256": "4b659033f7589262d4c563e47e693041e353c5bbabf6000c01775c7deb4fff7a"
+  },
+  {
+    "slug": "la_vita_e_bella",
+    "title": "La vita è bella",
+    "url": "https://it.wikipedia.org/wiki/La_vita_%C3%A8_bella",
+    "retrieved_at": "2026-11-20T10:25:28.953455+00:00",
+    "chars": 22573,
+    "sha256": "a80c06856eefae036bb8879c70a270d954cb315ecc12347139140bd6e0e08cbd"
+  },
+  {
+    "slug": "parasite_film_2019",
+    "title": "Parasite (film 2019)",
+    "url": "https://it.wikipedia.org/wiki/Parasite_%28film_2019%29",
+    "retrieved_at": "2026-11-20T10:25:28.953455+00:00",
+    "chars": 14008,
+    "sha256": "2966c1129674aa12028c74201f76d86464b6638add2384834430baaad7c8d6e9"
   }
 ]

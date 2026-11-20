@@ -46,7 +46,7 @@ def test_quiz_refused_when_budget_exhausted_and_model_not_called():
 
 
 def test_chat_refused_when_budget_not_configured():
-    response = make(SessionBudget(limit_usd=None), CountingGenerator()).post("/chat", json={"message": "ciao"})
+    response = make(SessionBudget(limit_usd=None), CountingGenerator()).post("/chat", json={"player": "Anna", "message": "ciao"})
     assert response.status_code == 503
     assert "non configurato" in response.json()["detail"]
 

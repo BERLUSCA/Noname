@@ -55,7 +55,7 @@ def ask(chars: int, chunks: int, question: str) -> str:
         chat_client_factory=lambda: create_client("MODEL_AGENT"),
         call_logger=logger,
     )
-    return TestClient(app).post("/chat", json={"message": question}).json()["answer"]
+    return TestClient(app).post("/chat", json={"player": "Anna", "message": question}).json()["answer"]
 
 
 def main() -> None:

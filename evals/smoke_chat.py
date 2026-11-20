@@ -41,7 +41,7 @@ def main() -> None:
         chat_client_factory=lambda: create_client("MODEL_AGENT"),
         call_logger=logger,
     )
-    response = TestClient(app).post("/chat", json={"message": args.message})
+    response = TestClient(app).post("/chat", json={"player": "Anna", "message": args.message})
     print("STATUS", response.status_code)
     print(response.json())
 

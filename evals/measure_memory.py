@@ -56,7 +56,7 @@ def run_mode(label: str, window: int, embedding_model: str) -> dict:
         client = TestClient(app)
         session = None
         for text in TURNS:
-            body = {"message": text}
+            body = {"player": "Anna", "message": text}
             if session:
                 body["session_id"] = session
             session = client.post("/chat", json=body).json()["session_id"]
