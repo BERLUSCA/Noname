@@ -167,7 +167,7 @@ src/
               punteggio (scoring.py), giudice delle risposte per le valutazioni (answer_judge.py)
   observability/  log JSONL (logger.py), prezzi (pricing.py), budget (budget.py)
 data/         corpus (raw/), indice (index/), database (app.db, ignorato da git)
-docs/         presentazione (.pptx) e ripasso delle scelte di progetto (Ripasso.md)
+docs/         presentazione (.pptx)
 evals/        gold set (gold.jsonl; gold_proposed.jsonl contiene proposte da verificare), casi di injection, script di valutazione
 tests/        test offline
 ```
