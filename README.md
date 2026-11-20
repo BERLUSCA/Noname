@@ -2,7 +2,9 @@
 
 Un agente genera quiz a partire da pagine Wikipedia recuperate con RAG, verifica le domande con un giudice LLM,
 calcola i punteggi nel codice, gestisce sfide a due giocatori e una chat con memoria di sessione.
-L'interfaccia web è una sola pagina: accesso con il nome, chat con l'agente, elenco dei film e classifica.
+L'interfaccia web è composta da due pagine: 
+- La prima dove si accede/registra con il nome
+- La seconda dove si ha la chat con l'agente, elenco dei film e classifica.
 
 Progetto del corso AITHO GenAI Academy (Blocco 3), con [datapizza-ai](https://github.com/datapizza-labs/datapizza-ai) v0.1.0.
 
@@ -165,7 +167,7 @@ src/
               punteggio (scoring.py), giudice delle risposte per le valutazioni (answer_judge.py)
   observability/  log JSONL (logger.py), prezzi (pricing.py), budget (budget.py)
 data/         corpus (raw/), indice (index/), database (app.db, ignorato da git)
-docs/         presentazione (.pptx) e ripasso delle scelte di progetto (Ripasso.md)
+docs/         presentazione (.pptx)
 evals/        gold set (gold.jsonl; gold_proposed.jsonl contiene proposte da verificare), casi di injection, script di valutazione
 tests/        test offline
 ```
